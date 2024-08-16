@@ -3,21 +3,22 @@ import { PeaqAgungTestnet } from '@particle-network/chains';
 import { AAWrapProvider, SmartAccount } from '@particle-network/aa';
 import { useEthereum, useConnect, useAuthCore } from '@particle-network/auth-core-modal';
 import { ethers } from 'ethers';
+import { Transaction } from '@particle-network/aa';
 import { notification } from 'antd';
 
 import './App.css';
 
-const App = () => {
+const App: React.FC = () => {
   const { provider } = useEthereum();
   const { connect, disconnect } = useConnect();
   const { userInfo } = useAuthCore();
 
-  const [balance, setBalance] = useState("...");
+  const [balance, setBalance] = useState<string>("...");
 
   const smartAccount = new SmartAccount(provider, {
-    projectId: process.env.REACT_APP_PROJECT_ID,
-    clientKey: process.env.REACT_APP_CLIENT_KEY,
-    appId: process.env.REACT_APP_APP_ID,
+    projectId: process.env.REACT_APP_PROJECT_ID || '',
+    clientKey: process.env.REACT_APP_CLIENT_KEY || '',
+    appId: process.env.REACT_APP_APP_ID || '',
     aaOptions: {
       accountContracts: {
         SIMPLE: [{ chainIds: [PeaqAgungTestnet.id], version: '1.0.0' }],
@@ -34,44 +35,68 @@ const App = () => {
   }, [userInfo]);
 
   const fetchBalance = async () => {
-    const address = await smartAccount.getAddress();
-    const balanceResponse = await customProvider.getBalance(address);
-    setBalance(ethers.utils.formatEther(balanceResponse));
+    try {
+      const address = await smartAccount.getAddress();
+      const balanceResponse = await customProvider.getBalance(address);
+      setBalance(ethers.utils.formatEther(balanceResponse));
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+      setBalance("Error");
+    }
   };
 
-  const handleLogin = async (socialType) => {
+  const handleLogin = async (socialType: any) => {
     if (!userInfo) {
-      await connect({
-        socialType,
-        chain: PeaqAgungTestnet
-      });
+      try {
+        await connect({
+          socialType,
+          chain: PeaqAgungTestnet
+        });
+      } catch (error) {
+        console.error("Login error:", error);
+      }
     }
   };
 
   const executeUserOp = async () => {
-    const tx = {
-      to: "0x000000000000000000000000000000000000dEaD",
-      value: ethers.utils.parseEther('0.001')
-    };
-
-    notification.info({
-      message: "Loading Transaction"
-    });
-
-    const feeQuotes = await smartAccount.getFeeQuotes(tx);
-
-    const txResponse = await smartAccount.sendUserOperation({userOp: feeQuotes.verifyingPaymasterGasless.userOp, userOpHash: feeQuotes.verifyingPaymasterGasless.userOpHash});
-
-    notification.success({
-      message: "Transaction Successful",
-      description: (
-        <div>
-          Transaction Hash: <a href={`https://agung-testnet.subscan.io/tx/${txResponse}`} target="_blank" rel="noopener noreferrer">{txResponse}</a>
-        </div>
-      )
-    });
+    try {
+      const tx: Transaction = {
+        to: "0x000000000000000000000000000000000000dEaD",
+        value: ethers.utils.parseEther('0.001').toString(), // Convert BigNumber to string
+        data: '0x',
+      };
+  
+      notification.info({
+        message: "Loading Transaction"
+      });
+  
+      const feeQuotes = await smartAccount.getFeeQuotes(tx);
+  
+      if (!feeQuotes.verifyingPaymasterGasless) {
+        throw new Error("Gasless transaction is not available");
+      }
+  
+      const txResponse = await smartAccount.sendUserOperation({
+        userOp: feeQuotes.verifyingPaymasterGasless.userOp,
+        userOpHash: feeQuotes.verifyingPaymasterGasless.userOpHash
+      });
+  
+      notification.success({
+        message: "Transaction Successful",
+        description: (
+          <div>
+            Transaction Hash: <a href={`https://agung-testnet.subscan.io/tx/${txResponse}`} target="_blank" rel="noopener noreferrer">{txResponse}</a>
+          </div>
+        )
+      });
+    } catch (error) {
+      console.error("Transaction error:", error);
+      notification.error({
+        message: "Transaction Failed",
+        description: error instanceof Error ? error.message : "An error occurred while processing the transaction."
+      });
+    }
   };
-
   return (
     <div className="App">
       <div className="logo-section">
@@ -89,7 +114,7 @@ const App = () => {
             Sign in with X
           </button>
           <button className="sign-button other-button" onClick={() => handleLogin('')}>
-            <img src="https://i.imgur.com/VRftF1b.png" alt="Twitter" className="icon"/>
+            <img src="https://i.imgur.com/VRftF1b.png" alt="Other" className="icon"/>
           </button>
         </div>
       ) : (
