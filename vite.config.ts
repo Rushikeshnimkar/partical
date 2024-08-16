@@ -31,11 +31,11 @@ export default defineConfig({
     'process.env': process.env
   },
   build: {
-    target: 'esnext', // you can also use 'es2020' here
+    target: 'es2020', // you can also use 'es2020' here
   },
   optimizeDeps: {
     esbuildOptions: {
-      target: 'esnext', // you can also use 'es2020' here
+      target: 'es2020', // you can also use 'es2020' here
     },
   },
 });
